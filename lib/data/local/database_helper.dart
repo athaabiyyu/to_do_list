@@ -1,58 +1,38 @@
 // database_helper.dart
-// File ini bertanggung jawab untuk:
-// 1. Membuka / membuat file database SQLite di storage ponsel
-// 2. Membuat tabel-tabel yang dibutuhkan aplikasi
-// 3. Menyediakan satu titik akses database (pola Singleton)
+// Pusat akses database SQLite — pola Singleton.
+// Semua operasi baca/tulis ke database dilakukan melalui file ini.
 
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../../core/constants/app_constants.dart';
 
 class DatabaseHelper {
-  // --- SINGLETON PATTERN ---
-  // Pola Singleton memastikan hanya ada SATU instance DatabaseHelper
-  // di seluruh aplikasi. Ini penting agar koneksi database tidak dobel
-  // dan tidak terjadi konflik saat baca/tulis data.
-
-  // Instance tunggal yang tersimpan secara statis
+  // --- SINGLETON ---
+  // Hanya ada satu instance DatabaseHelper di seluruh aplikasi.
+  // Ini mencegah koneksi database terbuka berkali-kali.
   static final DatabaseHelper instance = DatabaseHelper._internal();
-
-  // Konstruktor privat — hanya bisa dipanggil dari dalam class ini
   DatabaseHelper._internal();
-
-  // Objek database yang akan diisi saat pertama kali diakses
   static Database? _database;
 
-  // Getter 'database': setiap kali kode lain butuh akses DB,
-  // mereka memanggil ini. Jika DB sudah ada, langsung return.
-  // Jika belum, baru dibuat lewat _initDB().
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDB();
     return _database!;
   }
 
-  // --- INISIALISASI DATABASE ---
+  // --- INISIALISASI ---
   Future<Database> _initDB() async {
-    // getDatabasesPath() → mendapatkan folder default penyimpanan DB di ponsel
-    // join() → menggabungkan path folder + nama file database
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'digistore.db');
-
+    final path = join(await getDatabasesPath(), 'todolist.db');
     return await openDatabase(
       path,
       version: 1,
-      // onCreate dipanggil HANYA saat database pertama kali dibuat
       onCreate: _onCreate,
-      // onUpgrade dipanggil jika versi database dinaikkan (untuk migrasi)
       onUpgrade: _onUpgrade,
     );
   }
 
-  // --- PEMBUATAN TABEL ---
   Future<void> _onCreate(Database db, int version) async {
-    // Tabel 'settings' digunakan untuk menyimpan konfigurasi aplikasi,
-    // termasuk username dan password yang bisa diganti di halaman Pengaturan.
+    // Tabel settings: menyimpan konfigurasi aplikasi (username, password)
     await db.execute('''
       CREATE TABLE settings (
         key   TEXT PRIMARY KEY,
@@ -60,8 +40,28 @@ class DatabaseHelper {
       )
     ''');
 
-    // Memasukkan data default username dan password ke tabel settings
-    // menggunakan nilai dari AppConstants agar konsisten.
+    // Tabel tugas: menyimpan semua data tugas pengguna
+    // Kolom:
+    //   id          → primary key auto-increment
+    //   judul       → judul/nama tugas
+    //   deskripsi   → keterangan tambahan (boleh kosong)
+    //   prioritas   → 'penting' atau 'biasa'
+    //   status      → 0 = belum selesai, 1 = selesai
+    //   tanggal_selesai → tanggal saat tugas ditandai selesai (ISO 8601)
+    //   created_at  → tanggal tugas dibuat
+    await db.execute('''
+      CREATE TABLE tugas (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        judul           TEXT    NOT NULL,
+        deskripsi       TEXT    DEFAULT '',
+        prioritas       TEXT    NOT NULL DEFAULT 'biasa',
+        status          INTEGER NOT NULL DEFAULT 0,
+        tanggal_selesai TEXT,
+        created_at      TEXT    NOT NULL
+      )
+    ''');
+
+    // Data default untuk tabel settings
     await db.insert('settings', {
       'key': AppConstants.keyUsername,
       'value': AppConstants.defaultUsername,
@@ -72,37 +72,150 @@ class DatabaseHelper {
     });
   }
 
-  // --- MIGRASI DATABASE ---
-  // Dipanggil otomatis jika versi DB dinaikkan (misal dari 1 ke 2).
-  // Gunakan ini saat menambah kolom atau tabel baru di versi berikutnya.
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Contoh migrasi versi 1 → 2 (untuk referensi ke depan):
-    // if (oldVersion < 2) {
-    //   await db.execute('ALTER TABLE settings ADD COLUMN updated_at TEXT');
-    // }
+    // Tempat untuk migrasi jika struktur tabel berubah di versi berikutnya
   }
 
-  // --- HELPER: Ambil satu nilai dari tabel settings berdasarkan key ---
+  // ==========================================================================
+  // SETTINGS
+  // ==========================================================================
+
   Future<String?> getSetting(String key) async {
-    final db = await database;
-    final result = await db.query(
-      'settings',
-      where: 'key = ?',
-      whereArgs: [key],
-      limit: 1,
-    );
+    final db     = await database;
+    final result = await db.query('settings',
+        where: 'key = ?', whereArgs: [key], limit: 1);
     if (result.isEmpty) return null;
     return result.first['value'] as String?;
   }
 
-  // --- HELPER: Simpan / update nilai di tabel settings ---
   Future<void> setSetting(String key, String value) async {
     final db = await database;
-    // ConflictAlgorithm.replace → jika key sudah ada, timpa nilainya
-    await db.insert(
-      'settings',
-      {'key': key, 'value': value},
-      conflictAlgorithm: ConflictAlgorithm.replace,
+    await db.insert('settings', {'key': key, 'value': value},
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  // ==========================================================================
+  // STATISTIK — digunakan oleh halaman Beranda
+  // ==========================================================================
+
+  // Menghitung jumlah tugas dengan status = 1 (selesai)
+  Future<int> getTugasSelesaiCount() async {
+    final db     = await database;
+    final result = await db.rawQuery(
+        'SELECT COUNT(*) as total FROM tugas WHERE status = 1');
+    return (result.first['total'] as int?) ?? 0;
+  }
+
+  // Menghitung jumlah tugas dengan status = 0 (belum selesai)
+  Future<int> getTugasBelumSelesaiCount() async {
+    final db     = await database;
+    final result = await db.rawQuery(
+        'SELECT COUNT(*) as total FROM tugas WHERE status = 0');
+    return (result.first['total'] as int?) ?? 0;
+  }
+
+  // Mengambil data grafik: jumlah tugas selesai per hari untuk 7 hari terakhir
+  // Return: List of Map berisi 'hari' (label), 'jumlah', dan 'isHariIni'
+  Future<List<Map<String, dynamic>>> getGrafikMingguan() async {
+    final db  = await database;
+    final now = DateTime.now();
+
+    // Label hari pendek dalam bahasa Indonesia
+    const labelHari = ['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
+
+    final List<Map<String, dynamic>> result = [];
+
+    // Loop 7 hari ke belakang (hari ini = indeks 6)
+    for (int i = 6; i >= 0; i--) {
+      final hari       = now.subtract(Duration(days: i));
+      final tanggalStr = '${hari.year}-'
+          '${hari.month.toString().padLeft(2, '0')}-'
+          '${hari.day.toString().padLeft(2, '0')}';
+
+      // Query: hitung tugas selesai di tanggal ini
+      // tanggal_selesai disimpan dalam format ISO 8601 (YYYY-MM-DD...)
+      final query = await db.rawQuery('''
+        SELECT COUNT(*) as total FROM tugas
+        WHERE status = 1
+          AND tanggal_selesai LIKE '$tanggalStr%'
+      ''');
+
+      final jumlah = (query.first['total'] as int?) ?? 0;
+      // weekday: 1=Senin ... 7=Minggu → index labelHari: 0=Sen ... 6=Min
+      final labelIndex = hari.weekday - 1;
+
+      result.add({
+        'hari'      : labelHari[labelIndex],
+        'jumlah'    : jumlah,
+        'isHariIni' : i == 0, // hari ini mendapat warna berbeda di grafik
+      });
+    }
+
+    return result;
+  }
+
+  // ==========================================================================
+  // CRUD TUGAS
+  // ==========================================================================
+
+  // Menyimpan tugas baru ke database
+  Future<int> insertTugas({
+    required String judul,
+    String deskripsi = '',
+    required String prioritas, // 'penting' atau 'biasa'
+  }) async {
+    final db = await database;
+    return await db.insert('tugas', {
+      'judul'     : judul,
+      'deskripsi' : deskripsi,
+      'prioritas' : prioritas,
+      'status'    : 0,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  // Mengambil semua tugas, diurutkan: belum selesai dulu, lalu penting dulu
+  Future<List<Map<String, dynamic>>> getAllTugas() async {
+    final db = await database;
+    return await db.query(
+      'tugas',
+      orderBy: 'status ASC, prioritas DESC, created_at DESC',
+    );
+  }
+
+  // Mengubah status tugas: selesai (1) atau belum selesai (0)
+  Future<void> updateStatusTugas(int id, bool selesai) async {
+    final db = await database;
+    await db.update(
+      'tugas',
+      {
+        'status'          : selesai ? 1 : 0,
+        // Simpan tanggal selesai saat ditandai selesai, hapus saat dibatalkan
+        'tanggal_selesai' : selesai ? DateTime.now().toIso8601String() : null,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // Menghapus tugas dari database berdasarkan id
+  Future<void> deleteTugas(int id) async {
+    final db = await database;
+    await db.delete('tugas', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // Mengubah judul dan deskripsi tugas
+  Future<void> updateTugas({
+    required int id,
+    required String judul,
+    String deskripsi = '',
+  }) async {
+    final db = await database;
+    await db.update(
+      'tugas',
+      {'judul': judul, 'deskripsi': deskripsi},
+      where: 'id = ?',
+      whereArgs: [id],
     );
   }
 }

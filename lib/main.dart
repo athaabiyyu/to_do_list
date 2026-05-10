@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'DigiStore',
+      title: 'Taso',
 
       // Menyembunyikan banner "DEBUG" di pojok kanan atas
       debugShowCheckedModeBanner: false,
@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
       // colorSchemeSeed menentukan warna utama (primary) dan
       // Flutter akan otomatis generate warna-warna turunannya.
       theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF1565C0), // Biru profesional
+        colorSchemeSeed: const Color(0xFF2E7D32),
         brightness: Brightness.light,
         useMaterial3: true, // Gunakan Material Design 3 (terbaru)
 

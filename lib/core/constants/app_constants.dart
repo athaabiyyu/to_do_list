@@ -9,10 +9,10 @@ class AppConstants {
   AppConstants._();
 
   // Nama aplikasi yang tampil di halaman Login dan lainnya
-  static const String appName = 'DigiStore';
+  static const String appName = 'Taso';
 
   // Tagline / deskripsi singkat aplikasi
-  static const String appTagline = 'Kelola toko Anda dengan mudah';
+  static const String appTagline = 'Catat tugasmu, selesaikan harimu';
 
   // Kredensial default saat pertama kali aplikasi dipakai.
   // Nilai ini akan bisa diganti lewat halaman Pengaturan nantinya.

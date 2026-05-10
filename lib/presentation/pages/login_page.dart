@@ -170,7 +170,7 @@ class _LoginPageState extends State<LoginPage> {
             ],
           ),
           child: Icon(
-            Icons.store_rounded, // icon toko — bisa diganti sesuai tema app
+            Icons.check_circle_outline_rounded,
             size: MediaQuery.of(context).size.width * 0.13,
             color: colorScheme.onPrimaryContainer,
           ),
