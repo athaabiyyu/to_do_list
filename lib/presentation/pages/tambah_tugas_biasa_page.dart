@@ -3,7 +3,6 @@
 // Strukturnya identik dengan TambahTugasPentingPage, perbedaannya:
 //   1. Warna aksen → hijau (bukan merah)
 //   2. prioritas yang disimpan → 'biasa' (bukan 'penting')
-//   3. Tidak ada field jatuh tempo (tugas biasa tidak wajib punya deadline)
 
 import 'package:flutter/material.dart';
 import '../../data/local/database_helper.dart';
@@ -22,8 +21,41 @@ class _TambahTugasBiasaPageState extends State<TambahTugasBiasaPage> {
   final _deskripsiController = TextEditingController();
   bool _isLoading            = false;
 
-  // Warna aksen halaman ini: hijau — mencerminkan tugas yang lebih santai
+  DateTime? _selectedDate;
   static const _accentColor = Color(0xFF2E7D32);
+
+  // Membuka dialog kalender untuk memilih tanggal jatuh tempo
+  Future<void> _pickDate() async {
+    final now    = DateTime.now();
+    final picked = await showDatePicker(
+      context     : context,
+      initialDate : _selectedDate ?? now,
+      firstDate   : now,
+      lastDate    : DateTime(now.year + 5),
+      helpText    : 'Pilih Tanggal Jatuh Tempo',
+      confirmText : 'Pilih',
+      cancelText  : 'Batal',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: _accentColor,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) setState(() => _selectedDate = picked);
+  }
+
+  // Mengubah DateTime
+  String _formatTanggal(DateTime date) {
+    const hariList  = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
+    const bulanList = ['','Januari','Februari','Maret','April','Mei','Juni',
+                       'Juli','Agustus','September','Oktober','November','Desember'];
+    return '${hariList[date.weekday - 1]}, ${date.day} ${bulanList[date.month]} ${date.year}';
+  }
 
   @override
   void dispose() {
@@ -36,15 +68,19 @@ class _TambahTugasBiasaPageState extends State<TambahTugasBiasaPage> {
   Future<void> _simpan() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Validasi tanggal jatuh tempo wajib diisi
+    if (_selectedDate == null) {
+      _showSnackBar('Pilih tanggal jatuh tempo terlebih dahulu.', isError: true);
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      // Menyimpan tugas dengan prioritas 'biasa'
-      // Tidak ada jatuh_tempo → null (opsional untuk tugas biasa)
       await DatabaseHelper.instance.insertTugas(
         judul     : _judulController.text.trim(),
         deskripsi : _deskripsiController.text.trim(),
         prioritas : 'biasa',
-        // jatuhTempo tidak diisi → default null di DatabaseHelper
+        jatuhTempo: _selectedDate, // kirim tanggal yang dipilih
       );
 
       if (!mounted) return;
@@ -179,7 +215,7 @@ class _TambahTugasBiasaPageState extends State<TambahTugasBiasaPage> {
                   color: Color(0xFF424242))),
           const SizedBox(height: 16),
 
-          // Field Judul — sama persis dengan halaman Tugas Penting
+          // Field Judul 
           CustomTextField(
             controller: _judulController,
             label: 'Judul Tugas',
@@ -197,7 +233,6 @@ class _TambahTugasBiasaPageState extends State<TambahTugasBiasaPage> {
           ),
           const SizedBox(height: 16),
 
-          // Field Deskripsi — multi-line, opsional
           TextFormField(
             controller: _deskripsiController,
             maxLines: 3,
@@ -233,32 +268,63 @@ class _TambahTugasBiasaPageState extends State<TambahTugasBiasaPage> {
             ),
           ),
 
-          // INFO: Tugas biasa tidak memiliki jatuh tempo
-          // Ini membedakannya dari tugas penting secara fungsional
-          const SizedBox(height: 8),
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E9),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.info_outline_rounded,
-                    color: _accentColor, size: 16),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Tugas biasa tidak memerlukan tanggal jatuh tempo.',
-                    style:
-                        TextStyle(fontSize: 12, color: Color(0xFF388E3C)),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Field Date Picker Jatuh Tempo 
+          const SizedBox(height: 16),
+          _buildDatePickerField(),
         ],
+      ),
+    );
+  }
+
+  // Date Picker field — identik dengan di halaman Tugas Penting,
+  Widget _buildDatePickerField() {
+    final isSelected = _selectedDate != null;
+    return GestureDetector(
+      onTap: _pickDate,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? _accentColor : Colors.grey.withOpacity(0.5),
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          color: isSelected
+              ? _accentColor.withOpacity(0.05)
+              : Colors.grey.withOpacity(0.05),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_today_rounded,
+                color: isSelected ? _accentColor : Colors.grey, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Tanggal Jatuh Tempo',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: isSelected ? _accentColor : Colors.grey[600])),
+                  const SizedBox(height: 2),
+                  Text(
+                    isSelected
+                        ? _formatTanggal(_selectedDate!)
+                        : 'Ketuk untuk memilih tanggal',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: isSelected ? const Color(0xFF212121) : Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                color: isSelected ? _accentColor : Colors.grey),
+          ],
+        ),
       ),
     );
   }

@@ -1,10 +1,4 @@
 // tambah_tugas_penting_page.dart
-// Halaman untuk menambahkan tugas berkategori "penting" ke database SQLite.
-// Bertanggung jawab untuk:
-// 1. Menampilkan form: judul, deskripsi, dan tanggal jatuh tempo
-// 2. Validasi input sebelum disimpan
-// 3. Menyimpan data ke SQLite via DatabaseHelper
-// 4. Kembali ke Beranda setelah simpan (agar Beranda bisa refresh data)
 
 import 'package:flutter/material.dart';
 import '../../data/local/database_helper.dart';
@@ -24,23 +18,19 @@ class _TambahTugasPentingPageState extends State<TambahTugasPentingPage> {
   final _deskripsiController  = TextEditingController();
 
   // Menyimpan tanggal yang dipilih dari DatePicker.
-  // Nullable karena awalnya belum dipilih.
   DateTime? _selectedDate;
 
   bool _isLoading = false;
 
   @override
   void dispose() {
-    // Wajib dispose controller untuk mencegah memory leak
+    // dispose controller untuk mencegah memory leak
     _judulController.dispose();
     _deskripsiController.dispose();
     super.dispose();
   }
 
   // --- DATE PICKER ---
-  // Menampilkan dialog kalender bawaan Flutter.
-  // firstDate = hari ini (tidak bisa pilih tanggal lampau)
-  // lastDate  = 5 tahun ke depan
   Future<void> _pickDate() async {
     final now    = DateTime.now();
     final picked = await showDatePicker(
@@ -52,19 +42,16 @@ class _TambahTugasPentingPageState extends State<TambahTugasPentingPage> {
       confirmText: 'Pilih',
       cancelText: 'Batal',
       builder: (context, child) {
-        // Membungkus DatePicker dengan Theme agar warnanya sesuai tema app
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: const Color(0xFFE53935), // merah — identik tugas penting
+              primary: const Color(0xFFE53935),
             ),
           ),
           child: child!,
         );
       },
     );
-
-    // Hanya update state jika user memilih tanggal (tidak tekan Batal)
     if (picked != null) {
       setState(() => _selectedDate = picked);
     }
@@ -72,7 +59,6 @@ class _TambahTugasPentingPageState extends State<TambahTugasPentingPage> {
 
   // --- FORMAT TANGGAL ---
   // Mengubah DateTime menjadi string yang ramah dibaca,
-  // misal: "Senin, 12 Mei 2026"
   String _formatTanggal(DateTime date) {
     const hariList  = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
     const bulanList = ['','Januari','Februari','Maret','April','Mei','Juni',
@@ -95,12 +81,11 @@ class _TambahTugasPentingPageState extends State<TambahTugasPentingPage> {
 
     try {
       // Langkah 3: Simpan ke SQLite via DatabaseHelper
-      // prioritas diset 'penting' secara otomatis di halaman ini
       await DatabaseHelper.instance.insertTugas(
         judul     : _judulController.text.trim(),
         deskripsi : _deskripsiController.text.trim(),
         prioritas : 'penting',
-        jatuhTempo: _selectedDate!, // sudah dipastikan tidak null di atas
+        jatuhTempo: _selectedDate!,
       );
 
       if (!mounted) return;
@@ -109,8 +94,6 @@ class _TambahTugasPentingPageState extends State<TambahTugasPentingPage> {
       _showSnackBar('Tugas penting berhasil disimpan!', isError: false);
 
       // Langkah 5: Kembali ke halaman sebelumnya (Beranda)
-      // pop() mengembalikan kontrol ke Beranda, lalu Beranda akan
-      // memanggil _loadData() via .then() di _navigateAndRefresh()
       await Future.delayed(const Duration(milliseconds: 800));
       if (mounted) Navigator.pop(context);
 
@@ -137,7 +120,6 @@ class _TambahTugasPentingPageState extends State<TambahTugasPentingPage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    // Warna aksen halaman ini: merah — mencerminkan urgensi tugas penting
     const accentColor = Color(0xFFE53935);
 
     return Scaffold(
@@ -146,8 +128,6 @@ class _TambahTugasPentingPageState extends State<TambahTugasPentingPage> {
         title: const Text('Tambah Tugas Penting',
             style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: accentColor,
-        // Tombol "<< Kembali" otomatis muncul karena ada Navigator.push sebelumnya
-        // Flutter akan menampilkan tombol back bawaan di sini
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
@@ -180,7 +160,6 @@ class _TambahTugasPentingPageState extends State<TambahTugasPentingPage> {
   }
 
   // --- WIDGET: Header Card ---
-  // Menampilkan identitas visual halaman ini (ikon + keterangan kategori)
   Widget _buildHeaderCard(Color accentColor) {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -235,7 +214,6 @@ class _TambahTugasPentingPageState extends State<TambahTugasPentingPage> {
   }
 
   // --- WIDGET: Form Card ---
-  // Semua field input dibungkus dalam satu card agar terlihat rapi & terkelompok
   Widget _buildFormCard(ColorScheme colorScheme, Color accentColor) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -293,7 +271,6 @@ class _TambahTugasPentingPageState extends State<TambahTugasPentingPage> {
   }
 
   // Deskripsi menggunakan TextFormField dengan maxLines
-  // agar pengguna bisa menulis keterangan lebih panjang
   Widget _buildDeskripsiField(ColorScheme colorScheme) {
     return TextFormField(
       controller: _deskripsiController,
@@ -328,8 +305,7 @@ class _TambahTugasPentingPageState extends State<TambahTugasPentingPage> {
     );
   }
 
-  // Date Picker ditampilkan sebagai tombol yang terlihat seperti field
-  // Saat ditekan, membuka dialog kalender bawaan Flutter
+  // Date Picker
   Widget _buildDatePickerField(Color accentColor) {
     final isSelected = _selectedDate != null;
 
@@ -419,8 +395,6 @@ class _TambahTugasPentingPageState extends State<TambahTugasPentingPage> {
   }
 
   // --- TOMBOL KEMBALI ---
-  // Menggunakan OutlinedButton agar secara visual lebih ringan dari tombol Simpan
-  // (hierarki visual: Simpan = primary, Kembali = secondary)
   Widget _buildTombolKembali(Color accentColor) {
     return SizedBox(
       height: 52,

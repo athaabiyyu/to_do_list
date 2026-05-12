@@ -1,23 +1,15 @@
-// custom_text_field.dart
-// Widget TextField yang bisa dipakai ulang (reusable) di seluruh aplikasi.
-// Keuntungan membuat widget sendiri:
-// - Tampilan konsisten di semua halaman
-// - Jika ingin ubah gaya, cukup ubah di satu file ini
-// - Kode di halaman-halaman lain jadi lebih ringkas dan bersih
 
 import 'package:flutter/material.dart';
 
 class CustomTextField extends StatelessWidget {
   // --- PROPERTI ---
-  // Semua konfigurasi diterima dari luar (parent widget),
-  // sehingga widget ini fleksibel dan bisa dipakai untuk berbagai field.
 
   final TextEditingController controller;
   final String label;
   final String hint;
   final IconData prefixIcon;
-  final bool isPassword;   // jika true, teks akan disembunyikan (••••)
-  final String? Function(String?)? validator; // fungsi validasi opsional
+  final bool isPassword;  
+  final String? Function(String?)? validator; 
 
   const CustomTextField({
     super.key,
@@ -36,7 +28,7 @@ class CustomTextField extends StatelessWidget {
 
     return TextFormField(
       controller: controller,
-      obscureText: isPassword, // sembunyikan teks jika ini field password
+      obscureText: isPassword, 
       validator: validator,
       decoration: InputDecoration(
         labelText: label,

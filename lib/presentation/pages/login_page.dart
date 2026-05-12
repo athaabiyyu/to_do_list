@@ -1,11 +1,3 @@
-// login_page.dart
-// Halaman Login — halaman pertama yang muncul saat aplikasi dibuka.
-// Bertanggung jawab untuk:
-// 1. Menampilkan logo, nama, dan tagline aplikasi
-// 2. Menerima input username dan password
-// 3. Memvalidasi input dengan data yang tersimpan di SQLite
-// 4. Mengarahkan ke halaman Beranda jika login berhasil
-
 import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/local/database_helper.dart';
@@ -19,25 +11,19 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-// State dipisah dari widget karena halaman ini memiliki data yang berubah
-// (loading state, nilai controller, dll) — inilah kegunaan StatefulWidget.
 class _LoginPageState extends State<LoginPage> {
 
-  // --- CONTROLLER ---
-  // TextEditingController digunakan untuk membaca nilai yang diketik user
-  // di dalam TextField. Wajib di-dispose saat widget dihancurkan.
+  // controller
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // GlobalKey untuk Form — digunakan untuk memvalidasi semua field sekaligus
+  // GlobalKey untuk Form
   final _formKey = GlobalKey<FormState>();
 
-  // State untuk menampilkan loading indicator saat proses login berlangsung
+  // loading indicator
   bool _isLoading = false;
 
-  // --- DISPOSE ---
-  // Wajib! Melepaskan resource controller dari memori saat halaman ditutup.
-  // Jika tidak di-dispose, bisa menyebabkan memory leak.
+  // melepaskan resource controller dari memori saat halaman ditutup.
   @override
   void dispose() {
     _usernameController.dispose();
@@ -45,53 +31,45 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // --- FUNGSI LOGIN ---
-  // Fungsi ini dipanggil saat tombol "Login" ditekan.
+  // Login function
   Future<void> _handleLogin() async {
-    // Jalankan validasi form terlebih dahulu.
-    // Jika ada field yang tidak valid, proses dihentikan.
+
     if (!_formKey.currentState!.validate()) return;
 
-    // Tampilkan loading indicator dan matikan interaksi
     setState(() => _isLoading = true);
 
     try {
-      // Ambil username dan password yang tersimpan di database SQLite
       final db = DatabaseHelper.instance;
+
+      // Ambil kredensial yang tersimpan di database
       final savedUsername = await db.getSetting(AppConstants.keyUsername);
       final savedPassword = await db.getSetting(AppConstants.keyPassword);
 
-      // Bandingkan input user dengan data di database
+      // Bandingkan dengan input pengguna
       final inputUsername = _usernameController.text.trim();
       final inputPassword = _passwordController.text;
 
       final isValid =
           inputUsername == savedUsername && inputPassword == savedPassword;
 
-      if (!mounted) return; // Pastikan widget masih ada sebelum update UI
+      if (!mounted) return;
 
       if (isValid) {
-        // Login berhasil → navigasi ke Beranda
-        // pushReplacement mengganti halaman ini dengan Beranda,
-        // sehingga user tidak bisa kembali ke Login dengan tombol back.
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const BerandaPage()),
         );
       } else {
-        // Login gagal → tampilkan pesan error via SnackBar
         _showErrorSnackBar('Username atau password salah.');
       }
     } catch (e) {
-      // Tangani error tak terduga (misal DB error)
       if (mounted) _showErrorSnackBar('Terjadi kesalahan. Coba lagi.');
     } finally {
-      // Sembunyikan loading indicator, apapun hasilnya
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- HELPER: Tampilkan pesan error ---
+  // helper untuk menampilkan pesan error 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -103,19 +81,16 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // --- BUILD UI ---
+  // UI
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      // Agar konten tidak tertimpa keyboard saat field ditekan
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            // Padding responsif: menggunakan persentase lebar layar
-            // agar tampilan proporsional di berbagai ukuran ponsel
             padding: EdgeInsets.symmetric(
               horizontal: MediaQuery.of(context).size.width * 0.08,
               vertical: 32,
@@ -126,17 +101,14 @@ class _LoginPageState extends State<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // --- BAGIAN LOGO & IDENTITAS APLIKASI ---
                   _buildAppIdentity(colorScheme),
 
                   const SizedBox(height: 48),
 
-                  // --- BAGIAN FORM INPUT ---
                   _buildForm(),
 
                   const SizedBox(height: 24),
 
-                  // --- TOMBOL LOGIN ---
                   _buildLoginButton(colorScheme),
                 ],
               ),
@@ -147,15 +119,11 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // --- WIDGET: Logo, Nama, dan Tagline Aplikasi ---
-  // Dipisah menjadi method tersendiri agar build() tetap ringkas dan mudah dibaca.
+  // Widget : logo, nama, dan tagline aplikasi 
   Widget _buildAppIdentity(ColorScheme colorScheme) {
     return Column(
       children: [
-        // Logo aplikasi menggunakan Container berbentuk lingkaran
-        // dengan icon di dalamnya — mudah diganti dengan gambar aset.
         Container(
-          // Ukuran responsif berdasarkan lebar layar
           width: MediaQuery.of(context).size.width * 0.28,
           height: MediaQuery.of(context).size.width * 0.28,
           decoration: BoxDecoration(
@@ -178,7 +146,6 @@ class _LoginPageState extends State<LoginPage> {
 
         const SizedBox(height: 20),
 
-        // Nama Aplikasi
         Text(
           AppConstants.appName,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -190,7 +157,6 @@ class _LoginPageState extends State<LoginPage> {
 
         const SizedBox(height: 6),
 
-        // Tagline / Deskripsi singkat
         Text(
           AppConstants.appTagline,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -202,11 +168,10 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // --- WIDGET: Form Input Username & Password ---
+  // Widget : form input username & password 
   Widget _buildForm() {
     return Column(
       children: [
-        // Field Username menggunakan CustomTextField yang sudah dibuat
         CustomTextField(
           controller: _usernameController,
           label: 'Username',
@@ -229,7 +194,7 @@ class _LoginPageState extends State<LoginPage> {
           label: 'Password',
           hint: 'Masukkan password Anda',
           prefixIcon: Icons.lock_outline_rounded,
-          isPassword: true, // aktifkan mode obscure text
+          isPassword: true, 
           validator: (value) {
             if (value == null || value.isEmpty) {
               return 'Password tidak boleh kosong';
@@ -241,13 +206,12 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // --- WIDGET: Tombol Login ---
+  // Widget : Tombol Login 
   Widget _buildLoginButton(ColorScheme colorScheme) {
     return SizedBox(
-      height: 52, // tinggi tombol yang nyaman untuk disentuh
+      height: 52,
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleLogin,
-        // Jika sedang loading, tombol dinonaktifkan (null = disabled)
         style: ElevatedButton.styleFrom(
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
@@ -257,7 +221,6 @@ class _LoginPageState extends State<LoginPage> {
           elevation: 2,
         ),
         child: _isLoading
-            // Tampilkan loading spinner saat proses login berlangsung
             ? SizedBox(
                 width: 22,
                 height: 22,
@@ -266,7 +229,6 @@ class _LoginPageState extends State<LoginPage> {
                   color: colorScheme.onPrimary,
                 ),
               )
-            // Tampilkan teks "Login" saat tidak loading
             : const Text(
                 'Login',
                 style: TextStyle(

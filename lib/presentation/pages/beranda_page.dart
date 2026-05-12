@@ -1,12 +1,3 @@
-// beranda_page.dart
-// Halaman Beranda — halaman utama setelah login berhasil.
-// Bertanggung jawab untuk:
-// 1. Menampilkan sapaan dan tanggal hari ini secara dinamis
-// 2. Menampilkan statistik tugas (selesai & belum selesai) dari SQLite
-// 3. Menampilkan grafik bar tugas selesai per hari (7 hari terakhir)
-// 4. Navigasi ke halaman Tambah Tugas Penting, Tambah Tugas Biasa,
-//    Daftar Tugas, dan Pengaturan
-
 import 'package:flutter/material.dart';
 import '../../data/local/database_helper.dart';
 import 'tambah_tugas_penting_page.dart';
@@ -35,8 +26,6 @@ class _BerandaPageState extends State<BerandaPage> {
   }
 
   // --- LOAD DATA DARI SQLITE ---
-  // Mengambil semua data yang dibutuhkan halaman Beranda secara paralel
-  // menggunakan Future.wait agar lebih efisien
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
@@ -60,7 +49,7 @@ class _BerandaPageState extends State<BerandaPage> {
     }
   }
 
-  // Menghasilkan string tanggal format Indonesia, misal: "Senin, 4 Mei 2026"
+  // Menghasilkan string tanggal format Indonesia
   String _getTanggalHariIni() {
     final now = DateTime.now();
     const hari  = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
@@ -70,7 +59,6 @@ class _BerandaPageState extends State<BerandaPage> {
   }
 
   // Navigasi ke halaman lain lalu refresh data saat kembali
-  // (misal setelah menambah tugas baru)
   void _navigateAndRefresh(Widget page) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => page))
         .then((_) => _loadData());
@@ -284,14 +272,17 @@ class _BerandaPageState extends State<BerandaPage> {
           const SizedBox(height: 16),
 
           // Bar chart manual
+          // SizedBox height 150 memberi ruang cukup untuk:
+          // angka (14px) + SizedBox(3) + bar (maks 70px) + SizedBox(6) + label (16px) = ~109px
           SizedBox(
-            height: 120,
+            height: 150,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: _grafikData.map((data) {
                 final jumlah    = data['jumlah'] as int;
                 final isHariIni = data['isHariIni'] as bool? ?? false;
-                final tinggi    = (jumlah / maxVal) * 88;
+                // Tinggi bar max 70px agar tidak meluber keluar SizedBox
+                final tinggi    = (jumlah / maxVal) * 70;
 
                 return Expanded(
                   child: Padding(
